@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	v, err := semver.Parse("0.0.1-alpha.preview.222+123.github")
+	v, err := semver.Parse("0.0.1.2-alpha.preview.222+123.github")
 	if err != nil {
 		fmt.Printf("Error while parsing (not valid): %q", err)
 	}
@@ -16,6 +16,7 @@ func main() {
 	fmt.Printf("Major: %d\n", v.Major)
 	fmt.Printf("Minor: %d\n", v.Minor)
 	fmt.Printf("Patch: %d\n", v.Patch)
+	fmt.Printf("Revision: %d\n", v.Revision)
 
 	// Prerelease versions
 	if len(v.Pre) > 0 {

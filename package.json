@@ -1,17 +1,20 @@
 {
   "author": "blang",
+  "maintainers": [
+    "mikefero"
+  ],
   "bugs": {
-    "URL": "https://github.com/blang/semver/issues",
-    "url": "https://github.com/blang/semver/issues"
+    "URL": "https://github.com/mikefero/semver/issues",
+    "url": "https://github.com/mikefero/semver/issues"
   },
   "gx": {
-    "dvcsimport": "github.com/blang/semver"
+    "dvcsimport": "github.com/mikefero/semver"
   },
   "gxVersion": "0.10.0",
   "language": "go",
   "license": "MIT",
   "name": "semver",
   "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
-  "version": "3.6.1"
+  "version": "3.6.1-4digit"
 }
 

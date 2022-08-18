@@ -1,7 +1,7 @@
-semver for golang [![Build Status](https://travis-ci.org/blang/semver.svg?branch=master)](https://travis-ci.org/blang/semver) [![GoDoc](https://godoc.org/github.com/blang/semver/v4?status.svg)](https://godoc.org/github.com/blang/semver/v4) [![Coverage Status](https://img.shields.io/coveralls/blang/semver.svg)](https://coveralls.io/r/blang/semver?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/blang/semver)](https://goreportcard.com/report/github.com/blang/semver)
-======
-
 semver is a [Semantic Versioning](http://semver.org/) library written in golang. It fully covers spec version `2.0.0`.
+
+This fork of [blang/semver](https://github.com/blang/semver) has been updated to accept 4 digit versions. This goes against
+semver by incorporating a revision number which is used by many enterprise organizations.
 
 Versioning
 ----------
@@ -12,16 +12,16 @@ The current stable version is [*v4*](v4/) and is fully go-mod compatible.
 Usage
 -----
 ```bash
-$ go get github.com/blang/semver/v4
+$ go get github.com/mikefero/semver/v4
 # Or use fixed versions
-$ go get github.com/blang/semver/v4@v4.0.0
+$ go get github.com/mikefero/semver/v4@v4.0.0
 ```
 Note: Always vendor your dependencies or fix on a specific version tag.
 
 ```go
-import github.com/blang/semver/v4
-v1, err := semver.Make("1.0.0-beta")
-v2, err := semver.Make("2.0.0-beta")
+import github.com/mikefero/semver/v4
+v1, err := semver.Make("1.0.0.0-beta")
+v2, err := semver.Make("2.0.0.0-beta")
 v1.Compare(v2)
 ```
 
@@ -32,7 +32,8 @@ Why should I use this lib?
 
 - Fully spec compatible
 - No reflection
-- No regex
+- ~No regex~
+  - Regex was added to make parsing 3 and 4 digit versioning for readability of code
 - Fully tested (Coverage >99%)
 - Readable parsing/validation errors
 - Fast (See [Benchmarks](#benchmarks))
@@ -48,8 +49,8 @@ Features
 - Comparator-like comparisons
 - Compare Helper Methods
 - InPlace manipulation
-- Ranges `>=1.0.0 <2.0.0 || >=3.0.0 !3.0.1-beta.1`
-- Wildcards `>=1.x`, `<=2.5.x`
+- Ranges `>=1.0.0 <2.0.0 || >=3.0.0 !3.0.1-beta.1`, `>=1.0.0.0 <2.0.0.0 || >=3.0.0 !3.0.1.0-beta.1`
+- Wildcards `>=1.x`, `<=2.5.x`, `>=1.2.3.x`, `<=2.5.x`
 - Sortable (implements sort.Interface)
 - database/sql compatible (sql.Scanner/Valuer)
 - encoding/json compatible (json.Marshaler/Unmarshaler)
@@ -87,6 +88,8 @@ Ranges can be combined by both AND and OR
 
   - `>1.0.0 <2.0.0 || >3.0.0 !4.2.1` would match `1.2.3`, `1.9.9`, `3.1.1`, but not `4.2.1`, `2.1.1`
 
+Note that all ranges can contain a mixture of 3 and 4 digit version numbers.
+
 Range usage:
 
 ```
@@ -104,7 +107,7 @@ Example
 Have a look at full examples in [v4/examples/main.go](v4/examples/main.go)
 
 ```go
-import github.com/blang/semver/v4
+import github.com/mikefero/semver/v4
 
 v, err := semver.Make("0.0.1-alpha.preview+123.github")
 fmt.Printf("Major: %d\n", v.Major)
@@ -160,26 +163,27 @@ if err != nil {
 Benchmarks
 -----
 
-    BenchmarkParseSimple-4           5000000    390    ns/op    48 B/op   1 allocs/op
-    BenchmarkParseComplex-4          1000000   1813    ns/op   256 B/op   7 allocs/op
-    BenchmarkParseAverage-4          1000000   1171    ns/op   163 B/op   4 allocs/op
-    BenchmarkStringSimple-4         20000000    119    ns/op    16 B/op   1 allocs/op
-    BenchmarkStringLarger-4         10000000    206    ns/op    32 B/op   2 allocs/op
-    BenchmarkStringComplex-4         5000000    324    ns/op    80 B/op   3 allocs/op
-    BenchmarkStringAverage-4         5000000    273    ns/op    53 B/op   2 allocs/op
-    BenchmarkValidateSimple-4      200000000      9.33 ns/op     0 B/op   0 allocs/op
-    BenchmarkValidateComplex-4       3000000    469    ns/op     0 B/op   0 allocs/op
-    BenchmarkValidateAverage-4       5000000    256    ns/op     0 B/op   0 allocs/op
-    BenchmarkCompareSimple-4       100000000     11.8  ns/op     0 B/op   0 allocs/op
-    BenchmarkCompareComplex-4       50000000     30.8  ns/op     0 B/op   0 allocs/op
-    BenchmarkCompareAverage-4       30000000     41.5  ns/op     0 B/op   0 allocs/op
-    BenchmarkSort-4                  3000000    419    ns/op   256 B/op   2 allocs/op
-    BenchmarkRangeParseSimple-4      2000000    850    ns/op   192 B/op   5 allocs/op
-    BenchmarkRangeParseAverage-4     1000000   1677    ns/op   400 B/op  10 allocs/op
-    BenchmarkRangeParseComplex-4      300000   5214    ns/op  1440 B/op  30 allocs/op
-    BenchmarkRangeMatchSimple-4     50000000     25.6  ns/op     0 B/op   0 allocs/op
-    BenchmarkRangeMatchAverage-4    30000000     56.4  ns/op     0 B/op   0 allocs/op
-    BenchmarkRangeMatchComplex-4    10000000    153    ns/op     0 B/op   0 allocs/op
+    BenchmarkParseSimple-8             1604840    757.7 ns/op    224 B/op   2 allocs/op
+    BenchmarkParseComplex-8             480861     2351 ns/op    434 B/op   8 allocs/op
+    BenchmarkParseAverage-8             568860     2365 ns/op    341 B/op   5 allocs/op
+    BenchmarkParseTolerantAverage-8     423841     2881 ns/op    535 B/op   9 allocs/op
+    BenchmarkStringSimple-8           38751848    31.04 ns/op      5 B/op   1 allocs/op
+    BenchmarkStringLarger-8           16473154    71.87 ns/op     32 B/op   2 allocs/op
+    BenchmarkStringComplex-8          10292580    153.5 ns/op     80 B/op   3 allocs/op
+    BenchmarkStringAverage-8          11083524    109.2 ns/op     48 B/op   2 allocs/op
+    BenchmarkValidateSimple-8        300665788    3.944 ns/op      0 B/op   0 allocs/op
+    BenchmarkValidateComplex-8         6201321    217.8 ns/op      0 B/op   0 allocs/op
+    BenchmarkValidateAverage-8        11562688    106.9 ns/op      0 B/op   0 allocs/op
+    BenchmarkCompareSimple-8         175868226    6.688 ns/op      0 B/op   0 allocs/op
+    BenchmarkCompareComplex-8         81058132    15.18 ns/op      0 B/op   0 allocs/op
+    BenchmarkCompareAverage-8         51633844    23.23 ns/op      0 B/op   0 allocs/op
+    BenchmarkSort-8                    6390456    190.1 ns/op    264 B/op   2 allocs/op
+    BenchmarkRangeParseSimple-8        1061410     1169 ns/op    418 B/op   8 allocs/op
+    BenchmarkRangeParseAverage-8        504180     2263 ns/op    844 B/op  15 allocs/op
+    BenchmarkRangeParseComplex-8        170269     7123 ns/op   2906 B/op  45 allocs/op
+    BenchmarkRangeMatchSimple-8       71724456    16.70 ns/op      0 B/op   0 allocs/op
+    BenchmarkRangeMatchAverage-8      32207384    36.53 ns/op      0 B/op   0 allocs/op
+    BenchmarkRangeMatchComplex-8      12062602    100.4 ns/op      0 B/op   0 allocs/op
 
 See benchmark cases at [semver_test.go](semver_test.go)
 
@@ -189,6 +193,12 @@ Motivation
 
 I simply couldn't find any lib supporting the full spec. Others were just wrong or used reflection and regex which i don't like.
 
+Motivation for fork
+-----
+
+Kong Gateway and Kong Gateway OSS use different versioning systems; Kong Gateway doesn't follow strict semver. As Kong Gateway and
+Kong Gateway OSS are released the major.minor.patch versions are in lock step; however, Kong Gateway may have additional revisions
+that are based of the OSS upstream. In order to handle version comparisons the fork was a necessary evil.
 
 Contribution
 -----

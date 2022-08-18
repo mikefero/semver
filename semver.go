@@ -3,40 +3,63 @@ package semver
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
 
 const (
-	numbers  string = "0123456789"
-	alphas          = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-"
-	alphanum        = alphas + numbers
+	numbers                string = "0123456789"
+	alphas                        = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-"
+	alphanum                      = alphas + numbers
+	kongVersionRegexFormat        = `^(?P<major>0|[1-9]\d*)\.` +
+		`(?P<minor>0|[1-9]\d*)\.` +
+		`(?P<patch>0|[1-9]\d*)` +
+		`(?:\.(?P<revision>0|[1-9]\d*))?` +
+		`(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?` +
+		`(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`
+	kongTolerantVersionRegexFormat = `^(?:v|\s*)?(?P<major>\d+)?` +
+		`(?:\.)?(?P<minor>\d+)?` +
+		`(?:\.)?(?P<patch>\d+)?` +
+		`(?:\.(?P<revision>\d+))?` +
+		`(?:-(?P<prerelease>(?:\d+|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:\d+|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?` +
+		`(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?\s*$`
 )
 
-// SpecVersion is the latest fully supported spec version of semver
-var SpecVersion = Version{
-	Major: 2,
-	Minor: 0,
-	Patch: 0,
-}
+var (
+	// SpecVersion is the latest fully supported spec version of semver
+	SpecVersion = Version{
+		Major: 2,
+		Minor: 0,
+		Patch: 0,
+	}
+
+	KongVersionRegex         = regexp.MustCompile(kongVersionRegexFormat)
+	KongTolerantVersionRegex = regexp.MustCompile(kongTolerantVersionRegexFormat)
+)
 
 // Version represents a semver compatible version
 type Version struct {
-	Major uint64
-	Minor uint64
-	Patch uint64
-	Pre   []PRVersion
-	Build []string //No Precedence
+	Major    uint64
+	Minor    uint64
+	Patch    uint64
+	Revision int64
+	Pre      []PRVersion
+	Build    []string //No Precedence
 }
 
-// Version to string
+// KongVersion to string
 func (v Version) String() string {
-	b := make([]byte, 0, 5)
+	b := make([]byte, 0, 7)
 	b = strconv.AppendUint(b, v.Major, 10)
 	b = append(b, '.')
 	b = strconv.AppendUint(b, v.Minor, 10)
 	b = append(b, '.')
 	b = strconv.AppendUint(b, v.Patch, 10)
+	if v.Revision >= 0 {
+		b = append(b, '.')
+		b = strconv.AppendInt(b, v.Revision, 10)
+	}
 
 	if len(v.Pre) > 0 {
 		b = append(b, '-')
@@ -64,12 +87,16 @@ func (v Version) String() string {
 // FinalizeVersion discards prerelease and build number and only returns
 // major, minor and patch number.
 func (v Version) FinalizeVersion() string {
-	b := make([]byte, 0, 5)
+	b := make([]byte, 0, 7)
 	b = strconv.AppendUint(b, v.Major, 10)
 	b = append(b, '.')
 	b = strconv.AppendUint(b, v.Minor, 10)
 	b = append(b, '.')
 	b = strconv.AppendUint(b, v.Patch, 10)
+	if v.Revision >= 0 {
+		b = append(b, '.')
+		b = strconv.AppendInt(b, v.Revision, 10)
+	}
 	return string(b)
 }
 
@@ -142,6 +169,16 @@ func (v Version) Compare(o Version) int {
 		return -1
 	}
 
+	// Handle revision comparison for 3-digit and 4-digit versions.
+	// 1.2.2.3 < 1.2.3 is true
+	// 1.2.3 < 1.2.3.4 is true
+	if v.Revision != o.Revision && v.Revision != -1 && o.Revision != -1 {
+		if v.Revision > o.Revision {
+			return 1
+		}
+		return -1
+	}
+
 	// Quick comparison if a version has no prerelease versions
 	if len(v.Pre) == 0 && len(o.Pre) == 0 {
 		return 0
@@ -174,8 +211,19 @@ func (v Version) Compare(o Version) int {
 }
 
 // IncrementPatch increments the patch version
+func (v *Version) IncrementRevision() error {
+	if v.Revision >= 0 {
+		v.Revision++
+	}
+	return nil
+}
+
+// IncrementPatch increments the patch version
 func (v *Version) IncrementPatch() error {
 	v.Patch++
+	if v.Revision >= 0 {
+		v.Revision = 0
+	}
 	return nil
 }
 
@@ -183,6 +231,9 @@ func (v *Version) IncrementPatch() error {
 func (v *Version) IncrementMinor() error {
 	v.Minor++
 	v.Patch = 0
+	if v.Revision >= 0 {
+		v.Revision = 0
+	}
 	return nil
 }
 
@@ -191,6 +242,9 @@ func (v *Version) IncrementMajor() error {
 	v.Major++
 	v.Minor = 0
 	v.Patch = 0
+	if v.Revision >= 0 {
+		v.Revision = 0
+	}
 	return nil
 }
 
@@ -238,31 +292,74 @@ func Make(s string) (Version, error) {
 // Parse(). It currently trims spaces, removes a "v" prefix, adds a 0 patch number to versions
 // with only major and minor components specified, and removes leading 0s.
 func ParseTolerant(s string) (Version, error) {
-	s = strings.TrimSpace(s)
-	s = strings.TrimPrefix(s, "v")
+	if !KongTolerantVersionRegex.MatchString(s) {
+		return Version{}, fmt.Errorf("Invalid tolerant version: '%s'", s)
+	}
 
-	// Split into major.minor.(patch+pr+meta)
-	parts := strings.SplitN(s, ".", 3)
-	// Remove leading zeros.
-	for i, p := range parts {
-		if len(p) > 1 {
-			p = strings.TrimLeft(p, "0")
-			if len(p) == 0 || !strings.ContainsAny(p[0:1], "0123456789") {
-				p = "0" + p
-			}
-			parts[i] = p
+	// Split into major.minor.patch.revision-pr+build and remove leading zeros from
+	// major, minor, patch, and revision
+	parts := KongTolerantVersionRegex.FindStringSubmatch(s)
+	majorStr := parts[KongTolerantVersionRegex.SubexpIndex("major")]
+	minorStr := parts[KongTolerantVersionRegex.SubexpIndex("minor")]
+	patchStr := parts[KongTolerantVersionRegex.SubexpIndex("patch")]
+	revisionStr := parts[KongTolerantVersionRegex.SubexpIndex("revision")]
+	prereleaseStr := parts[KongTolerantVersionRegex.SubexpIndex("prerelease")]
+	buildStr := parts[KongTolerantVersionRegex.SubexpIndex("buildmetadata")]
+	if len(majorStr) > 1 {
+		majorStr = strings.TrimLeft(majorStr, "0")
+		if len(majorStr) == 0 {
+			majorStr = "0"
 		}
 	}
+	if len(minorStr) > 1 {
+		minorStr = strings.TrimLeft(minorStr, "0")
+		if len(minorStr) == 0 {
+			minorStr = "0"
+		}
+	}
+	if len(patchStr) > 1 {
+		patchStr = strings.TrimLeft(patchStr, "0")
+		if len(patchStr) == 0 {
+			patchStr = "0"
+		}
+	}
+	if len(revisionStr) > 1 {
+		revisionStr = strings.TrimLeft(revisionStr, "0")
+		if len(revisionStr) == 0 {
+			revisionStr = "0"
+		}
+	}
+
 	// Fill up shortened versions.
-	if len(parts) < 3 {
-		if strings.ContainsAny(parts[len(parts)-1], "+-") {
+	patchLen := len(patchStr)
+	minorLen := len(minorStr)
+	majorLen := len(majorStr)
+	if patchLen == 0 || minorLen == 0 || majorLen == 0 {
+		if len(prereleaseStr) > 0 || len(buildStr) > 0 {
 			return Version{}, errors.New("Short version cannot contain PreRelease/Build meta data")
 		}
-		for len(parts) < 3 {
-			parts = append(parts, "0")
+		if len(patchStr) == 0 {
+			patchStr = "0"
+		}
+		if len(minorStr) == 0 {
+			minorStr = "0"
+		}
+		if len(majorStr) == 0 {
+			majorStr = "0"
 		}
 	}
-	s = strings.Join(parts, ".")
+
+	// Generate version to properly parse
+	s = fmt.Sprintf("%s.%s.%s", majorStr, minorStr, patchStr)
+	if len(revisionStr) > 0 {
+		s = fmt.Sprintf("%s.%s", s, revisionStr)
+	}
+	if len(prereleaseStr) > 0 {
+		s = fmt.Sprintf("%s-%s", s, prereleaseStr)
+	}
+	if len(buildStr) > 0 {
+		s = fmt.Sprintf("%s+%s", s, buildStr)
+	}
 
 	return Parse(s)
 }
@@ -272,66 +369,49 @@ func Parse(s string) (Version, error) {
 	if len(s) == 0 {
 		return Version{}, errors.New("Version string empty")
 	}
-
-	// Split into major.minor.(patch+pr+meta)
-	parts := strings.SplitN(s, ".", 3)
-	if len(parts) != 3 {
-		return Version{}, errors.New("No Major.Minor.Patch elements found")
+	if !KongVersionRegex.MatchString(s) {
+		return Version{}, fmt.Errorf("Invalid version: '%s'", s)
 	}
 
-	// Major
-	if !containsOnly(parts[0], numbers) {
-		return Version{}, fmt.Errorf("Invalid character(s) found in major number %q", parts[0])
-	}
-	if hasLeadingZeroes(parts[0]) {
-		return Version{}, fmt.Errorf("Major number must not contain leading zeroes %q", parts[0])
-	}
-	major, err := strconv.ParseUint(parts[0], 10, 64)
+	// Split into major.minor.patch.revision-pr+build
+	parts := KongVersionRegex.FindStringSubmatch(s)
+	major, err := strconv.ParseUint(parts[KongVersionRegex.SubexpIndex("major")], 10, 64)
 	if err != nil {
 		return Version{}, err
 	}
-
-	// Minor
-	if !containsOnly(parts[1], numbers) {
-		return Version{}, fmt.Errorf("Invalid character(s) found in minor number %q", parts[1])
-	}
-	if hasLeadingZeroes(parts[1]) {
-		return Version{}, fmt.Errorf("Minor number must not contain leading zeroes %q", parts[1])
-	}
-	minor, err := strconv.ParseUint(parts[1], 10, 64)
+	minor, err := strconv.ParseUint(parts[KongVersionRegex.SubexpIndex("minor")], 10, 64)
 	if err != nil {
 		return Version{}, err
 	}
+	patch, err := strconv.ParseUint(parts[KongVersionRegex.SubexpIndex("patch")], 10, 64)
+	if err != nil {
+		return Version{}, err
+	}
+	revisionStr := parts[KongVersionRegex.SubexpIndex("revision")]
+	prereleaseStr := parts[KongVersionRegex.SubexpIndex("prerelease")]
+	buildStr := parts[KongVersionRegex.SubexpIndex("buildmetadata")]
 
 	v := Version{}
 	v.Major = major
 	v.Minor = minor
+	v.Patch = patch
+	v.Patch = patch
+	v.Revision = -1
+	if len(revisionStr) > 0 {
+		revision, err := strconv.ParseInt(revisionStr, 10, 64)
+		if err != nil {
+			return Version{}, err
+		}
+		v.Revision = revision
+	}
 
 	var build, prerelease []string
-	patchStr := parts[2]
-
-	if buildIndex := strings.IndexRune(patchStr, '+'); buildIndex != -1 {
-		build = strings.Split(patchStr[buildIndex+1:], ".")
-		patchStr = patchStr[:buildIndex]
+	if len(buildStr) > 0 {
+		build = strings.Split(buildStr, ".")
 	}
-
-	if preIndex := strings.IndexRune(patchStr, '-'); preIndex != -1 {
-		prerelease = strings.Split(patchStr[preIndex+1:], ".")
-		patchStr = patchStr[:preIndex]
+	if len(prereleaseStr) > 0 {
+		prerelease = strings.Split(prereleaseStr, ".")
 	}
-
-	if !containsOnly(patchStr, numbers) {
-		return Version{}, fmt.Errorf("Invalid character(s) found in patch number %q", patchStr)
-	}
-	if hasLeadingZeroes(patchStr) {
-		return Version{}, fmt.Errorf("Patch number must not contain leading zeroes %q", patchStr)
-	}
-	patch, err := strconv.ParseUint(patchStr, 10, 64)
-	if err != nil {
-		return Version{}, err
-	}
-
-	v.Patch = patch
 
 	// Prerelease
 	for _, prstr := range prerelease {

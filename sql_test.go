@@ -16,6 +16,8 @@ var scanTests = []scanTest{
 	{7, true, ""},
 	{7e4, true, ""},
 	{true, true, ""},
+	{"1.2.3.4", false, "1.2.3.4"},
+	{[]byte("1.2.3.4"), false, "1.2.3.4"},
 }
 
 func TestScanString(t *testing.T) {

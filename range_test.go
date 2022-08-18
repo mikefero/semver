@@ -48,6 +48,9 @@ var (
 	v1 = MustParse("1.2.2")
 	v2 = MustParse("1.2.3")
 	v3 = MustParse("1.2.4")
+	v4 = MustParse("1.2.3.2")
+	v5 = MustParse("1.2.3.3")
+	v6 = MustParse("1.2.3.4")
 )
 
 func testEQ(f comparator) bool {
@@ -84,6 +87,11 @@ func TestSplitAndTrim(t *testing.T) {
 		{"  >=   1.2.3   <=  1.2.3   ", []string{">=1.2.3", "<=1.2.3"}}, // Spaces between operator and version
 		{"1.2.3 || >=1.2.3 <1.2.3", []string{"1.2.3", "||", ">=1.2.3", "<1.2.3"}},
 		{"      1.2.3      ||     >=1.2.3     <1.2.3    ", []string{"1.2.3", "||", ">=1.2.3", "<1.2.3"}},
+		{"1.2.3.4 1.2.3.4", []string{"1.2.3.4", "1.2.3.4"}},
+		{"     1.2.3.4     1.2.3.4     ", []string{"1.2.3.4", "1.2.3.4"}},       // Spaces
+		{"  >=   1.2.3.4   <=  1.2.3.4   ", []string{">=1.2.3.4", "<=1.2.3.4"}}, // Spaces between operator and version
+		{"1.2.3.4 || >=1.2.3.4 <1.2.3.4", []string{"1.2.3.4", "||", ">=1.2.3.4", "<1.2.3.4"}},
+		{"      1.2.3.4      ||     >=1.2.3.4     <1.2.3.4    ", []string{"1.2.3.4", "||", ">=1.2.3.4", "<1.2.3.4"}},
 	}
 
 	for _, tc := range tests {
@@ -109,6 +117,15 @@ func TestSplitComparatorVersion(t *testing.T) {
 		{"!=1.2.3", []string{"!=", "1.2.3"}},
 		{"!1.2.3", []string{"!", "1.2.3"}},
 		{"error", nil},
+		{">1.2.3.4", []string{">", "1.2.3.4"}},
+		{">=1.2.3.4", []string{">=", "1.2.3.4"}},
+		{"<1.2.3.4", []string{"<", "1.2.3.4"}},
+		{"<=1.2.3.4", []string{"<=", "1.2.3.4"}},
+		{"1.2.3.4", []string{"", "1.2.3.4"}},
+		{"=1.2.3.4", []string{"=", "1.2.3.4"}},
+		{"==1.2.3.4", []string{"==", "1.2.3.4"}},
+		{"!=1.2.3.4", []string{"!=", "1.2.3.4"}},
+		{"!1.2.3.4", []string{"!", "1.2.3.4"}},
 	}
 	for _, tc := range tests {
 		if op, v, err := splitComparatorVersion(tc.i); err != nil {
@@ -142,6 +159,17 @@ func TestBuildVersionRange(t *testing.T) {
 		{"!", "1.2.3", testNE, "1.2.3"},
 		{">>", "1.2.3", nil, ""},  // Invalid comparator
 		{"=", "invalid", nil, ""}, // Invalid version
+		{">", "1.2.3.4", testGT, "1.2.3.4"},
+		{">=", "1.2.3.4", testGE, "1.2.3.4"},
+		{"<", "1.2.3.4", testLT, "1.2.3.4"},
+		{"<=", "1.2.3.4", testLE, "1.2.3.4"},
+		{"", "1.2.3.4", testEQ, "1.2.3.4"},
+		{"=", "1.2.3.4", testEQ, "1.2.3.4"},
+		{"==", "1.2.3.4", testEQ, "1.2.3.4"},
+		{"!=", "1.2.3.4", testNE, "1.2.3.4"},
+		{"!", "1.2.3.4", testNE, "1.2.3.4"},
+		{">>", "1.2.3.4", nil, ""}, // Invalid comparator
+		{"=", "invalid", nil, ""},  // Invalid version
 	}
 
 	for _, tc := range tests {
@@ -185,6 +213,17 @@ func TestSplitORParts(t *testing.T) {
 		}},
 		{[]string{">1.2.3", "||"}, nil},
 		{[]string{"||", ">1.2.3"}, nil},
+		{[]string{">1.2.3.4", "||", "<1.2.3.4", "||", "=1.2.3.4"}, [][]string{
+			{">1.2.3.4"},
+			{"<1.2.3.4"},
+			{"=1.2.3.4"},
+		}},
+		{[]string{">1.2.3.4", "<1.2.3.4", "||", "=1.2.3.4"}, [][]string{
+			{">1.2.3.4", "<1.2.3.4"},
+			{"=1.2.3.4"},
+		}},
+		{[]string{">1.2.3.4", "||"}, nil},
+		{[]string{"||", ">1.2.3.4"}, nil},
 	}
 	for _, tc := range tests {
 		o, err := splitORParts(tc.i)
@@ -202,6 +241,7 @@ func TestGetWildcardType(t *testing.T) {
 		{"x", majorWildcard},
 		{"1.x", minorWildcard},
 		{"1.2.x", patchWildcard},
+		{"1.2.3.x", revisionWildcard},
 		{"fo.o.b.ar", noneWildcard},
 	}
 
@@ -220,6 +260,7 @@ func TestCreateVersionFromWildcard(t *testing.T) {
 	}{
 		{"1.2.x", "1.2.0"},
 		{"1.x", "1.0.0"},
+		{"1.2.3.x", "1.2.3.0"},
 	}
 
 	for _, tc := range tests {
@@ -238,6 +279,8 @@ func TestIncrementMajorVersion(t *testing.T) {
 		{"1.2.3", "2.2.3"},
 		{"1.2", "2.2"},
 		{"foo.bar", ""},
+		{"1.2.3.4", "2.2.3.4"},
+		{"1.2.0.0", "2.2.0.0"},
 	}
 
 	for _, tc := range tests {
@@ -256,6 +299,8 @@ func TestIncrementMinorVersion(t *testing.T) {
 		{"1.2.3", "1.3.3"},
 		{"1.2", "1.3"},
 		{"foo.bar", ""},
+		{"1.2.3.4", "1.3.3.4"},
+		{"1.2.0.0", "1.3.0.0"},
 	}
 
 	for _, tc := range tests {
@@ -284,6 +329,11 @@ func TestExpandWildcardVersion(t *testing.T) {
 		{[][]string{{"!=1.x"}}, [][]string{{"<1.0.0", ">=2.0.0"}}},
 		{[][]string{{"1.2.x"}}, [][]string{{">=1.2.0", "<1.3.0"}}},
 		{[][]string{{"1.x"}}, [][]string{{">=1.0.0", "<2.0.0"}}},
+		{[][]string{{">=1.2.3.x"}}, [][]string{{">=1.2.3.0"}}},
+		{[][]string{{"<=1.2.3.x"}}, [][]string{{"<1.2.4.0"}}},
+		{[][]string{{">1.2.3.x"}}, [][]string{{">=1.2.4.0"}}},
+		{[][]string{{"<1.2.3.x"}}, [][]string{{"<1.2.3.0"}}},
+		{[][]string{{"!=1.2.3.x"}}, [][]string{{"<1.2.3.0", ">=1.2.4.0"}}},
 	}
 
 	for _, tc := range tests {
@@ -295,61 +345,125 @@ func TestExpandWildcardVersion(t *testing.T) {
 }
 
 func TestVersionRangeToRange(t *testing.T) {
-	vr := versionRange{
-		v: MustParse("1.2.3"),
-		c: compLT,
-	}
-	rf := vr.rangeFunc()
-	if !rf(MustParse("1.2.2")) || rf(MustParse("1.2.3")) {
-		t.Errorf("Invalid conversion to range func")
-	}
+	t.Run("3 digit ranges", func(t *testing.T) {
+		vr := versionRange{
+			v: MustParse("1.2.3"),
+			c: compLT,
+		}
+		rf := vr.rangeFunc()
+		if !rf(MustParse("1.2.2")) || rf(MustParse("1.2.3")) {
+			t.Errorf("Invalid conversion to range func")
+		}
+	})
+
+	t.Run("4 digit ranges", func(t *testing.T) {
+		vr := versionRange{
+			v: MustParse("1.2.3.4"),
+			c: compLT,
+		}
+		rf := vr.rangeFunc()
+		if !rf(MustParse("1.2.2.2")) || rf(MustParse("1.2.3.4")) {
+			t.Errorf("Invalid conversion to range func")
+		}
+	})
 }
 
 func TestRangeAND(t *testing.T) {
-	v := MustParse("1.2.2")
-	v1 := MustParse("1.2.1")
-	v2 := MustParse("1.2.3")
-	rf1 := Range(func(v Version) bool {
-		return v.GT(v1)
+	t.Run("3 digit ranges", func(t *testing.T) {
+		v := MustParse("1.2.2")
+		v1 := MustParse("1.2.1")
+		v2 := MustParse("1.2.3")
+		rf1 := Range(func(v Version) bool {
+			return v.GT(v1)
+		})
+		rf2 := Range(func(v Version) bool {
+			return v.LT(v2)
+		})
+		rf := rf1.AND(rf2)
+		if rf(v1) {
+			t.Errorf("Invalid rangefunc, accepted: %s", v1)
+		}
+		if rf(v2) {
+			t.Errorf("Invalid rangefunc, accepted: %s", v2)
+		}
+		if !rf(v) {
+			t.Errorf("Invalid rangefunc, did not accept: %s", v)
+		}
 	})
-	rf2 := Range(func(v Version) bool {
-		return v.LT(v2)
+
+	t.Run("4 digit ranges", func(t *testing.T) {
+		v := MustParse("1.2.2.3")
+		v1 := MustParse("1.2.1.2")
+		v2 := MustParse("1.2.3.4")
+		rf1 := Range(func(v Version) bool {
+			return v.GT(v1)
+		})
+		rf2 := Range(func(v Version) bool {
+			return v.LT(v2)
+		})
+		rf := rf1.AND(rf2)
+		if rf(v1) {
+			t.Errorf("Invalid rangefunc, accepted: %s", v1)
+		}
+		if rf(v2) {
+			t.Errorf("Invalid rangefunc, accepted: %s", v2)
+		}
+		if !rf(v) {
+			t.Errorf("Invalid rangefunc, did not accept: %s", v)
+		}
 	})
-	rf := rf1.AND(rf2)
-	if rf(v1) {
-		t.Errorf("Invalid rangefunc, accepted: %s", v1)
-	}
-	if rf(v2) {
-		t.Errorf("Invalid rangefunc, accepted: %s", v2)
-	}
-	if !rf(v) {
-		t.Errorf("Invalid rangefunc, did not accept: %s", v)
-	}
 }
 
 func TestRangeOR(t *testing.T) {
-	tests := []struct {
-		v Version
-		b bool
-	}{
-		{MustParse("1.2.0"), true},
-		{MustParse("1.2.2"), false},
-		{MustParse("1.2.4"), true},
-	}
-	v1 := MustParse("1.2.1")
-	v2 := MustParse("1.2.3")
-	rf1 := Range(func(v Version) bool {
-		return v.LT(v1)
-	})
-	rf2 := Range(func(v Version) bool {
-		return v.GT(v2)
-	})
-	rf := rf1.OR(rf2)
-	for _, tc := range tests {
-		if r := rf(tc.v); r != tc.b {
-			t.Errorf("Invalid for case %q: Expected %t, got %t", tc.v, tc.b, r)
+	t.Run("3 digit ranges", func(t *testing.T) {
+		tests := []struct {
+			v Version
+			b bool
+		}{
+			{MustParse("1.2.0"), true},
+			{MustParse("1.2.2"), false},
+			{MustParse("1.2.4"), true},
 		}
-	}
+		v1 := MustParse("1.2.1")
+		v2 := MustParse("1.2.3")
+		rf1 := Range(func(v Version) bool {
+			return v.LT(v1)
+		})
+		rf2 := Range(func(v Version) bool {
+			return v.GT(v2)
+		})
+		rf := rf1.OR(rf2)
+		for _, tc := range tests {
+			if r := rf(tc.v); r != tc.b {
+				t.Errorf("Invalid for case %q: Expected %t, got %t", tc.v, tc.b, r)
+			}
+		}
+	})
+
+	t.Run("4 digit ranges", func(t *testing.T) {
+		tests := []struct {
+			v Version
+			b bool
+		}{
+			{MustParse("1.2.0.1"), true},
+			{MustParse("1.2.2.2"), false},
+			{MustParse("1.2.4.3"), true},
+		}
+		v1 := MustParse("1.2.1.0")
+		v2 := MustParse("1.2.3.4")
+		rf1 := Range(func(v Version) bool {
+			return v.LT(v1)
+		})
+		rf2 := Range(func(v Version) bool {
+			return v.GT(v2)
+		})
+		rf := rf1.OR(rf2)
+		for _, tc := range tests {
+			if r := rf(tc.v); r != tc.b {
+				t.Errorf("Invalid for case %q: Expected %t, got %t", tc.v, tc.b, r)
+			}
+		}
+	})
 }
 
 func TestParseRange(t *testing.T) {
@@ -407,6 +521,79 @@ func TestParseRange(t *testing.T) {
 			{"1.2.3", false},
 			{"1.2.4", true},
 		}},
+		// 4 digit
+		{">1.2.3.4", []tv{
+			{"1.2.2", false},
+			{"1.2.3", false},
+			{"1.2.4", true},
+			{"1.2.2.3", false},
+			{"1.2.3.3", false},
+			{"1.2.4.0", true},
+		}},
+		{">=1.2.3.4", []tv{
+			{"1.2.3", true},
+			{"1.2.4", true},
+			{"1.2.2", false},
+			{"1.2.3.4", true},
+			{"1.2.4.0", true},
+			{"1.2.2.3", false},
+		}},
+		{"<1.2.3.4", []tv{
+			{"1.2.2", true},
+			{"1.2.3", false},
+			{"1.2.4", false},
+			{"1.2.2.3", true},
+			{"1.2.3.4", false},
+			{"1.2.4.0", false},
+		}},
+		{"<=1.2.3.4", []tv{
+			{"1.2.2", true},
+			{"1.2.3", true},
+			{"1.2.4", false},
+			{"1.2.2.3", true},
+			{"1.2.3.4", true},
+			{"1.2.4.0", false},
+		}},
+		{"1.2.3.4", []tv{
+			{"1.2.2", false},
+			{"1.2.3", true},
+			{"1.2.4", false},
+			{"1.2.2.3", false},
+			{"1.2.3.4", true},
+			{"1.2.4.0", false},
+		}},
+		{"=1.2.3.4", []tv{
+			{"1.2.2", false},
+			{"1.2.3", true},
+			{"1.2.4", false},
+			{"1.2.2.3", false},
+			{"1.2.3.4", true},
+			{"1.2.4.0", false},
+		}},
+		{"==1.2.3.4", []tv{
+			{"1.2.2", false},
+			{"1.2.3", true},
+			{"1.2.4", false},
+			{"1.2.2.3", false},
+			{"1.2.3.4", true},
+			{"1.2.4.0", false},
+		}},
+		{"!=1.2.3.4", []tv{
+			{"1.2.2", true},
+			{"1.2.3", false},
+			{"1.2.4", true},
+			{"1.2.2.3", true},
+			{"1.2.3.4", false},
+			{"1.2.4.0", true},
+		}},
+		{"!1.2.3.4", []tv{
+			{"1.2.2", true},
+			{"1.2.3", false},
+			{"1.2.4", true},
+			{"1.2.2.3", true},
+			{"1.2.3.4", false},
+			{"1.2.4.0", true},
+		}},
 		// Simple Expression errors
 		{">>1.2.3", nil},
 		{"!1.2.3", nil},
@@ -414,6 +601,9 @@ func TestParseRange(t *testing.T) {
 		{"string", nil},
 		{"", nil},
 		{"fo.ob.ar.x", nil},
+		// 4 digit
+		{">>1.2.3.4", nil},
+		{"!1.2.3.4", nil},
 		// AND Expressions
 		{">1.2.2 <1.2.4", []tv{
 			{"1.2.2", false},
@@ -438,16 +628,86 @@ func TestParseRange(t *testing.T) {
 			{"1.2.4", false},
 			{"1.2.5", false},
 		}},
+		// 4 digit
+		{">1.2.2.3 <1.2.4.5", []tv{
+			{"1.2.2", false},
+			{"1.2.3", true},
+			{"1.2.4", false},
+			{"1.2.2.3", false},
+			{"1.2.3.4", true},
+			{"1.2.4.5", false},
+		}},
+		{"<1.2.2.3 <1.2.4.5", []tv{
+			{"1.2.1", true},
+			{"1.2.2", false},
+			{"1.2.3", false},
+			{"1.2.4", false},
+			{"1.2.1.1", true},
+			{"1.2.2.3", false},
+			{"1.2.3.4", false},
+			{"1.2.4.0", false},
+		}},
+		{">1.2.2.3 <1.2.5.6 !=1.2.4.5", []tv{
+			{"1.2.2", false},
+			{"1.2.3", true},
+			{"1.2.4", false},
+			{"1.2.5", false},
+			{"1.2.2.3", false},
+			{"1.2.3.4", true},
+			{"1.2.4.5", false},
+			{"1.2.5.6", false},
+		}},
+		{">1.2.2.3 <1.2.5.6 !1.2.4.5", []tv{
+			{"1.2.2", false},
+			{"1.2.3", true},
+			{"1.2.4", false},
+			{"1.2.5", false},
+			{"1.2.2.3", false},
+			{"1.2.3.4", true},
+			{"1.2.4.5", false},
+			{"1.2.5.6", false},
+		}},
 		// OR Expressions
 		{">1.2.2 || <1.2.4", []tv{
 			{"1.2.2", true},
 			{"1.2.3", true},
 			{"1.2.4", true},
+			{"1.2.2.0", true},
+			{"1.2.2.3", true},
+			{"1.2.3.0", true},
+			{"1.2.3.4", true},
+			{"1.2.4.0", true},
 		}},
 		{"<1.2.2 || >1.2.4", []tv{
 			{"1.2.2", false},
 			{"1.2.3", false},
 			{"1.2.4", false},
+			{"1.2.2.0", false},
+			{"1.2.2.3", false},
+			{"1.2.3.0", false},
+			{"1.2.3.4", false},
+			{"1.2.4.0", false},
+		}},
+		// 4 digit
+		{">1.2.2.3 || <1.2.4.5", []tv{
+			{"1.2.2", true},
+			{"1.2.3", true},
+			{"1.2.4", true},
+			{"1.2.2.3", true},
+			{"1.2.3.0", true},
+			{"1.2.3.4", true},
+			{"1.2.4.2", true},
+			{"1.2.4.5", true},
+		}},
+		{"<1.2.2.3 || >1.2.4.5", []tv{
+			{"1.2.2", false},
+			{"1.2.3", false},
+			{"1.2.4", false},
+			{"1.2.2.3", false},
+			{"1.2.3.0", false},
+			{"1.2.3.4", false},
+			{"1.2.4.2", false},
+			{"1.2.4.5", false},
 		}},
 		// Wildcard expressions
 		{">1.x", []tv{
@@ -455,11 +715,33 @@ func TestParseRange(t *testing.T) {
 			{"1.2.6", false},
 			{"1.9.0", false},
 			{"2.0.0", true},
+			{"0.1.9.0", false},
+			{"1.2.6.0", false},
+			{"1.9.0.0", false},
+			{"2.0.0.0", true},
 		}},
 		{">1.2.x", []tv{
 			{"1.1.9", false},
 			{"1.2.6", false},
 			{"1.3.0", true},
+			{"1.1.9.0", false},
+			{"1.2.6.0", false},
+			{"1.3.0.0", true},
+			{"1.3.0.5", true},
+			{"1.2.4.0", false},
+			{"1.2.3.9", false},
+		}},
+		// 4 digit
+		{">1.2.3.x", []tv{
+			{"1.1.9", false},
+			{"1.2.6", true},
+			{"1.2.4", true},
+			{"1.3.0", true},
+			{"1.1.9.0", false},
+			{"1.2.6.0", true},
+			{"1.3.0.0", true},
+			{"1.2.4.0", true},
+			{"1.2.3.9", false},
 		}},
 		// Combined Expressions
 		{">1.2.2 <1.2.4 || >=2.0.0", []tv{
@@ -485,6 +767,50 @@ func TestParseRange(t *testing.T) {
 			{"2.9.9", true},
 			{"3.0.0", false},
 		}},
+		// 4 digit
+		{">1.2.2.3 <1.2.4.5 || >=2.0.0.0", []tv{
+			{"1.2.2", false},
+			{"1.2.3", true},
+			{"1.2.4", false},
+			{"2.0.0", true},
+			{"2.0.1", true},
+			{"1.2.2.3", false},
+			{"1.2.3.4", true},
+			{"1.2.4.5", false},
+			{"2.0.0.0", true},
+			{"2.0.1.0", true},
+		}},
+		{"1.2.x || >=2.0.0.x <2.2.1.x", []tv{
+			{"0.9.2", false},
+			{"1.2.2", true},
+			{"2.0.0", true},
+			{"2.1.8", true},
+			{"2.2.1", false},
+			{"2.2.0", true},
+			{"0.9.2.5", false},
+			{"1.2.2.3", true},
+			{"2.0.0.0", true},
+			{"2.1.8.0", true},
+			{"2.2.1.2", false},
+			{"2.2.1.0", false},
+			{"2.1.9.9", true},
+		}},
+		{">1.2.2.3 <1.2.4.5 || >=2.0.0.0 <3.0.0", []tv{
+			{"1.2.2", false},
+			{"1.2.3", true},
+			{"1.2.4", false},
+			{"2.0.0", true},
+			{"2.0.1", true},
+			{"2.9.9", true},
+			{"3.0.0", false},
+			{"1.2.2.3", false},
+			{"1.2.3.4", true},
+			{"1.2.4.5", false},
+			{"2.0.0.0", true},
+			{"2.0.1.0", true},
+			{"2.9.9.9", true},
+			{"3.0.0.0", false},
+		}},
 	}
 
 	for _, tc := range tests {
@@ -504,11 +830,21 @@ func TestParseRange(t *testing.T) {
 }
 
 func TestMustParseRange(t *testing.T) {
-	testCase := ">1.2.2 <1.2.4 || >=2.0.0 <3.0.0"
-	r := MustParseRange(testCase)
-	if !r(MustParse("1.2.3")) {
-		t.Errorf("Unexpected range behavior on MustParseRange")
-	}
+	t.Run("3 digit ranges", func(t *testing.T) {
+		testCase := ">1.2.2 <1.2.4 || >=2.0.0 <3.0.0"
+		r := MustParseRange(testCase)
+		if !r(MustParse("1.2.3")) {
+			t.Errorf("Unexpected range behavior on MustParseRange")
+		}
+	})
+
+	t.Run("4 digit ranges", func(t *testing.T) {
+		testCase := ">1.2.2.1 <1.2.4.5 || >=2.0.0.0 <3.0.0.0"
+		r := MustParseRange(testCase)
+		if !r(MustParse("1.2.3.4")) {
+			t.Errorf("Unexpected range behavior on MustParseRange")
+		}
+	})
 }
 
 func TestMustParseRange_panic(t *testing.T) {

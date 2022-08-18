@@ -10,10 +10,11 @@ import (
 type wildcardType int
 
 const (
-	noneWildcard  wildcardType = iota
-	majorWildcard wildcardType = 1
-	minorWildcard wildcardType = 2
-	patchWildcard wildcardType = 3
+	noneWildcard     wildcardType = iota
+	majorWildcard    wildcardType = 1
+	minorWildcard    wildcardType = 2
+	patchWildcard    wildcardType = 3
+	revisionWildcard wildcardType = 4
 )
 
 func wildcardTypefromInt(i int) wildcardType {
@@ -24,6 +25,8 @@ func wildcardTypefromInt(i int) wildcardType {
 		return minorWildcard
 	case 3:
 		return patchWildcard
+	case 4:
+		return revisionWildcard
 	default:
 		return noneWildcard
 	}
@@ -67,8 +70,8 @@ func (vr *versionRange) rangeFunc() Range {
 // Range represents a range of versions.
 // A Range can be used to check if a Version satisfies it:
 //
-//     range, err := semver.ParseRange(">1.0.0 <2.0.0")
-//     range(semver.MustParse("1.1.1") // returns true
+//	range, err := semver.ParseRange(">1.0.0 <2.0.0")
+//	range(semver.MustParse("1.1.1") // returns true
 type Range func(Version) bool
 
 // OR combines the existing Range with another Range using logical OR.
@@ -108,7 +111,7 @@ func (rf Range) AND(f Range) Range {
 //
 // Ranges can be combined by both AND and OR
 //
-//  - `>1.0.0 <2.0.0 || >3.0.0 !4.2.1` would match `1.2.3`, `1.9.9`, `3.1.1`, but not `4.2.1`, `2.1.1`
+//   - `>1.0.0 <2.0.0 || >3.0.0 !4.2.1` would match `1.2.3`, `1.9.9`, `3.1.1`, but not `4.2.1`, `2.1.1`
 func ParseRange(s string) (Range, error) {
 	parts := splitAndTrim(s)
 	orParts, err := splitORParts(parts)
@@ -301,6 +304,19 @@ func incrementMinorVersion(vStr string) (string, error) {
 	return strings.Join(parts, "."), nil
 }
 
+// incrementPatchVersion will increment the patch version
+// of the passed version
+func incrementPatchVersion(vStr string) (string, error) {
+	parts := strings.Split(vStr, ".")
+	i, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return "", err
+	}
+	parts[2] = strconv.Itoa(i + 1)
+
+	return strings.Join(parts, "."), nil
+}
+
 // expandWildcardVersion will expand wildcards inside versions
 // following these rules:
 //
@@ -362,6 +378,8 @@ func expandWildcardVersion(parts [][]string) ([][]string, error) {
 				var resultVersion string
 				if shouldIncrementVersion {
 					switch versionWildcardType {
+					case revisionWildcard:
+						resultVersion, _ = incrementPatchVersion(flatVersion)
 					case patchWildcard:
 						resultVersion, _ = incrementMinorVersion(flatVersion)
 					case minorWildcard:

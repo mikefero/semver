@@ -18,28 +18,44 @@ type formatTest struct {
 }
 
 var formatTests = []formatTest{
-	{Version{1, 2, 3, nil, nil}, "1.2.3"},
-	{Version{0, 0, 1, nil, nil}, "0.0.1"},
-	{Version{0, 0, 1, []PRVersion{prstr("alpha"), prstr("preview")}, []string{"123", "456"}}, "0.0.1-alpha.preview+123.456"},
-	{Version{1, 2, 3, []PRVersion{prstr("alpha"), prnum(1)}, []string{"123", "456"}}, "1.2.3-alpha.1+123.456"},
-	{Version{1, 2, 3, []PRVersion{prstr("alpha"), prnum(1)}, nil}, "1.2.3-alpha.1"},
-	{Version{1, 2, 3, nil, []string{"123", "456"}}, "1.2.3+123.456"},
+	{Version{1, 2, 3, -1, nil, nil}, "1.2.3"},
+	{Version{0, 0, 1, -1, nil, nil}, "0.0.1"},
+	{Version{0, 0, 1, -1, []PRVersion{prstr("alpha"), prstr("preview")}, []string{"123", "456"}}, "0.0.1-alpha.preview+123.456"},
+	{Version{1, 2, 3, -1, []PRVersion{prstr("alpha"), prnum(1)}, []string{"123", "456"}}, "1.2.3-alpha.1+123.456"},
+	{Version{1, 2, 3, -1, []PRVersion{prstr("alpha"), prnum(1)}, nil}, "1.2.3-alpha.1"},
+	{Version{1, 2, 3, -1, nil, []string{"123", "456"}}, "1.2.3+123.456"},
+	{Version{1, 2, 3, 4, nil, nil}, "1.2.3.4"},
+	{Version{0, 0, 1, 2, nil, nil}, "0.0.1.2"},
+	{Version{0, 0, 1, 2, []PRVersion{prstr("alpha"), prstr("preview")}, []string{"123", "456"}}, "0.0.1.2-alpha.preview+123.456"},
+	{Version{1, 2, 3, 4, []PRVersion{prstr("alpha"), prnum(1)}, []string{"123", "456"}}, "1.2.3.4-alpha.1+123.456"},
+	{Version{1, 2, 3, 4, []PRVersion{prstr("alpha"), prnum(1)}, nil}, "1.2.3.4-alpha.1"},
+	{Version{1, 2, 3, 4, nil, []string{"123", "456"}}, "1.2.3.4+123.456"},
 	// Prereleases and build metadata hyphens
-	{Version{1, 2, 3, []PRVersion{prstr("alpha"), prstr("b-eta")}, []string{"123", "b-uild"}}, "1.2.3-alpha.b-eta+123.b-uild"},
-	{Version{1, 2, 3, nil, []string{"123", "b-uild"}}, "1.2.3+123.b-uild"},
-	{Version{1, 2, 3, []PRVersion{prstr("alpha"), prstr("b-eta")}, nil}, "1.2.3-alpha.b-eta"},
+	{Version{1, 2, 3, -1, []PRVersion{prstr("alpha"), prstr("b-eta")}, []string{"123", "b-uild"}}, "1.2.3-alpha.b-eta+123.b-uild"},
+	{Version{1, 2, 3, -1, nil, []string{"123", "b-uild"}}, "1.2.3+123.b-uild"},
+	{Version{1, 2, 3, -1, []PRVersion{prstr("alpha"), prstr("b-eta")}, nil}, "1.2.3-alpha.b-eta"},
+	{Version{1, 2, 3, 4, []PRVersion{prstr("alpha"), prstr("b-eta")}, []string{"123", "b-uild"}}, "1.2.3.4-alpha.b-eta+123.b-uild"},
+	{Version{1, 2, 3, 4, nil, []string{"123", "b-uild"}}, "1.2.3.4+123.b-uild"},
+	{Version{1, 2, 3, 4, []PRVersion{prstr("alpha"), prstr("b-eta")}, nil}, "1.2.3.4-alpha.b-eta"},
 }
 
 var tolerantFormatTests = []formatTest{
-	{Version{1, 2, 3, nil, nil}, "v1.2.3"},
-	{Version{1, 2, 0, []PRVersion{prstr("alpha")}, nil}, "1.2.0-alpha"},
-	{Version{1, 2, 0, nil, nil}, "1.2.00"},
-	{Version{1, 2, 3, nil, nil}, "	1.2.3 "},
-	{Version{1, 2, 3, nil, nil}, "01.02.03"},
-	{Version{0, 0, 3, nil, nil}, "00.0.03"},
-	{Version{0, 0, 3, nil, nil}, "000.0.03"},
-	{Version{1, 2, 0, nil, nil}, "1.2"},
-	{Version{1, 0, 0, nil, nil}, "1"},
+	{Version{1, 2, 3, -1, nil, nil}, "v1.2.3"},
+	{Version{1, 2, 0, -1, []PRVersion{prstr("alpha")}, nil}, "1.2.0-alpha"},
+	{Version{1, 2, 0, -1, nil, nil}, "1.2.00"},
+	{Version{1, 2, 3, -1, nil, nil}, "	1.2.3 "},
+	{Version{1, 2, 3, -1, nil, nil}, "01.02.03"},
+	{Version{0, 0, 3, -1, nil, nil}, "00.0.03"},
+	{Version{0, 0, 3, -1, nil, nil}, "000.0.03"},
+	{Version{1, 2, 0, -1, nil, nil}, "1.2"},
+	{Version{1, 0, 0, -1, nil, nil}, "1"},
+	{Version{1, 2, 3, 4, nil, nil}, "v1.2.3.4"},
+	{Version{1, 2, 0, 0, []PRVersion{prstr("alpha")}, nil}, "1.2.0.0-alpha"},
+	{Version{1, 2, 0, 0, nil, nil}, "1.2.00.00"},
+	{Version{1, 2, 3, 4, nil, nil}, "	1.2.3.4 "},
+	{Version{1, 2, 3, 4, nil, nil}, "01.02.03.04"},
+	{Version{0, 0, 3, 1, nil, nil}, "00.0.03.01"},
+	{Version{0, 0, 3, 1, nil, nil}, "000.0.03.01"},
 }
 
 func TestStringer(t *testing.T) {
@@ -96,16 +112,25 @@ func TestValidate(t *testing.T) {
 }
 
 var finalizeVersionMethod = []formatTest{
-	{Version{1, 2, 3, nil, nil}, "1.2.3"},
-	{Version{0, 0, 1, nil, nil}, "0.0.1"},
-	{Version{0, 0, 1, []PRVersion{prstr("alpha"), prstr("preview")}, []string{"123", "456"}}, "0.0.1"},
-	{Version{1, 2, 3, []PRVersion{prstr("alpha"), prnum(1)}, []string{"123", "456"}}, "1.2.3"},
-	{Version{1, 2, 3, []PRVersion{prstr("alpha"), prnum(1)}, nil}, "1.2.3"},
-	{Version{1, 2, 3, nil, []string{"123", "456"}}, "1.2.3"},
+	{Version{1, 2, 3, -1, nil, nil}, "1.2.3"},
+	{Version{0, 0, 1, -1, nil, nil}, "0.0.1"},
+	{Version{0, 0, 1, -1, []PRVersion{prstr("alpha"), prstr("preview")}, []string{"123", "456"}}, "0.0.1"},
+	{Version{1, 2, 3, -1, []PRVersion{prstr("alpha"), prnum(1)}, []string{"123", "456"}}, "1.2.3"},
+	{Version{1, 2, 3, -1, []PRVersion{prstr("alpha"), prnum(1)}, nil}, "1.2.3"},
+	{Version{1, 2, 3, -1, nil, []string{"123", "456"}}, "1.2.3"},
+	{Version{1, 2, 3, 4, nil, nil}, "1.2.3.4"},
+	{Version{0, 0, 1, 0, nil, nil}, "0.0.1.0"},
+	{Version{0, 0, 1, 0, []PRVersion{prstr("alpha"), prstr("preview")}, []string{"123", "456"}}, "0.0.1.0"},
+	{Version{1, 2, 3, 4, []PRVersion{prstr("alpha"), prnum(1)}, []string{"123", "456"}}, "1.2.3.4"},
+	{Version{1, 2, 3, 4, []PRVersion{prstr("alpha"), prnum(1)}, nil}, "1.2.3.4"},
+	{Version{1, 2, 3, 4, nil, []string{"123", "456"}}, "1.2.3.4"},
 	// Prereleases and build metadata hyphens
-	{Version{1, 2, 3, []PRVersion{prstr("alpha"), prstr("b-eta")}, []string{"123", "b-uild"}}, "1.2.3"},
-	{Version{1, 2, 3, nil, []string{"123", "b-uild"}}, "1.2.3"},
-	{Version{1, 2, 3, []PRVersion{prstr("alpha"), prstr("b-eta")}, nil}, "1.2.3"},
+	{Version{1, 2, 3, -1, []PRVersion{prstr("alpha"), prstr("b-eta")}, []string{"123", "b-uild"}}, "1.2.3"},
+	{Version{1, 2, 3, -1, nil, []string{"123", "b-uild"}}, "1.2.3"},
+	{Version{1, 2, 3, -1, []PRVersion{prstr("alpha"), prstr("b-eta")}, nil}, "1.2.3"},
+	{Version{1, 2, 3, 4, []PRVersion{prstr("alpha"), prstr("b-eta")}, []string{"123", "b-uild"}}, "1.2.3.4"},
+	{Version{1, 2, 3, 4, nil, []string{"123", "b-uild"}}, "1.2.3.4"},
+	{Version{1, 2, 3, 4, []PRVersion{prstr("alpha"), prstr("b-eta")}, nil}, "1.2.3.4"},
 }
 
 func TestFinalizeVersionMethod(t *testing.T) {
@@ -124,34 +149,34 @@ type compareTest struct {
 }
 
 var compareTests = []compareTest{
-	{Version{1, 0, 0, nil, nil}, Version{1, 0, 0, nil, nil}, 0},
-	{Version{2, 0, 0, nil, nil}, Version{1, 0, 0, nil, nil}, 1},
-	{Version{0, 1, 0, nil, nil}, Version{0, 1, 0, nil, nil}, 0},
-	{Version{0, 2, 0, nil, nil}, Version{0, 1, 0, nil, nil}, 1},
-	{Version{0, 0, 1, nil, nil}, Version{0, 0, 1, nil, nil}, 0},
-	{Version{0, 0, 2, nil, nil}, Version{0, 0, 1, nil, nil}, 1},
-	{Version{1, 2, 3, nil, nil}, Version{1, 2, 3, nil, nil}, 0},
-	{Version{2, 2, 4, nil, nil}, Version{1, 2, 4, nil, nil}, 1},
-	{Version{1, 3, 3, nil, nil}, Version{1, 2, 3, nil, nil}, 1},
-	{Version{1, 2, 4, nil, nil}, Version{1, 2, 3, nil, nil}, 1},
+	{Version{1, 0, 0, -1, nil, nil}, Version{1, 0, 0, -1, nil, nil}, 0},
+	{Version{2, 0, 0, -1, nil, nil}, Version{1, 0, 0, -1, nil, nil}, 1},
+	{Version{0, 1, 0, -1, nil, nil}, Version{0, 1, 0, -1, nil, nil}, 0},
+	{Version{0, 2, 0, -1, nil, nil}, Version{0, 1, 0, -1, nil, nil}, 1},
+	{Version{0, 0, 1, -1, nil, nil}, Version{0, 0, 1, -1, nil, nil}, 0},
+	{Version{0, 0, 2, -1, nil, nil}, Version{0, 0, 1, -1, nil, nil}, 1},
+	{Version{1, 2, 3, -1, nil, nil}, Version{1, 2, 3, -1, nil, nil}, 0},
+	{Version{2, 2, 4, -1, nil, nil}, Version{1, 2, 4, -1, nil, nil}, 1},
+	{Version{1, 3, 3, -1, nil, nil}, Version{1, 2, 3, -1, nil, nil}, 1},
+	{Version{1, 2, 4, -1, nil, nil}, Version{1, 2, 3, -1, nil, nil}, 1},
 
 	// Spec Examples #11
-	{Version{1, 0, 0, nil, nil}, Version{2, 0, 0, nil, nil}, -1},
-	{Version{2, 0, 0, nil, nil}, Version{2, 1, 0, nil, nil}, -1},
-	{Version{2, 1, 0, nil, nil}, Version{2, 1, 1, nil, nil}, -1},
+	{Version{1, 0, 0, -1, nil, nil}, Version{2, 0, 0, -1, nil, nil}, -1},
+	{Version{2, 0, 0, -1, nil, nil}, Version{2, 1, 0, -1, nil, nil}, -1},
+	{Version{2, 1, 0, -1, nil, nil}, Version{2, 1, 1, -1, nil, nil}, -1},
 
 	// Spec Examples #9
-	{Version{1, 0, 0, nil, nil}, Version{1, 0, 0, []PRVersion{prstr("alpha")}, nil}, 1},
-	{Version{1, 0, 0, []PRVersion{prstr("alpha")}, nil}, Version{1, 0, 0, []PRVersion{prstr("alpha"), prnum(1)}, nil}, -1},
-	{Version{1, 0, 0, []PRVersion{prstr("alpha"), prnum(1)}, nil}, Version{1, 0, 0, []PRVersion{prstr("alpha"), prstr("beta")}, nil}, -1},
-	{Version{1, 0, 0, []PRVersion{prstr("alpha"), prstr("beta")}, nil}, Version{1, 0, 0, []PRVersion{prstr("beta")}, nil}, -1},
-	{Version{1, 0, 0, []PRVersion{prstr("beta")}, nil}, Version{1, 0, 0, []PRVersion{prstr("beta"), prnum(2)}, nil}, -1},
-	{Version{1, 0, 0, []PRVersion{prstr("beta"), prnum(2)}, nil}, Version{1, 0, 0, []PRVersion{prstr("beta"), prnum(11)}, nil}, -1},
-	{Version{1, 0, 0, []PRVersion{prstr("beta"), prnum(11)}, nil}, Version{1, 0, 0, []PRVersion{prstr("rc"), prnum(1)}, nil}, -1},
-	{Version{1, 0, 0, []PRVersion{prstr("rc"), prnum(1)}, nil}, Version{1, 0, 0, nil, nil}, -1},
+	{Version{1, 0, 0, -1, nil, nil}, Version{1, 0, 0, -1, []PRVersion{prstr("alpha")}, nil}, 1},
+	{Version{1, 0, 0, -1, []PRVersion{prstr("alpha")}, nil}, Version{1, 0, 0, -1, []PRVersion{prstr("alpha"), prnum(1)}, nil}, -1},
+	{Version{1, 0, 0, -1, []PRVersion{prstr("alpha"), prnum(1)}, nil}, Version{1, 0, 0, -1, []PRVersion{prstr("alpha"), prstr("beta")}, nil}, -1},
+	{Version{1, 0, 0, -1, []PRVersion{prstr("alpha"), prstr("beta")}, nil}, Version{1, 0, 0, -1, []PRVersion{prstr("beta")}, nil}, -1},
+	{Version{1, 0, 0, -1, []PRVersion{prstr("beta")}, nil}, Version{1, 0, 0, -1, []PRVersion{prstr("beta"), prnum(2)}, nil}, -1},
+	{Version{1, 0, 0, -1, []PRVersion{prstr("beta"), prnum(2)}, nil}, Version{1, 0, 0, -1, []PRVersion{prstr("beta"), prnum(11)}, nil}, -1},
+	{Version{1, 0, 0, -1, []PRVersion{prstr("beta"), prnum(11)}, nil}, Version{1, 0, 0, -1, []PRVersion{prstr("rc"), prnum(1)}, nil}, -1},
+	{Version{1, 0, 0, -1, []PRVersion{prstr("rc"), prnum(1)}, nil}, Version{1, 0, 0, -1, nil, nil}, -1},
 
 	// Ignore Build metadata
-	{Version{1, 0, 0, nil, []string{"1", "2", "3"}}, Version{1, 0, 0, nil, nil}, 0},
+	{Version{1, 0, 0, -1, nil, []string{"1", "2", "3"}}, Version{1, 0, 0, -1, nil, nil}, 0},
 }
 
 func TestCompare(t *testing.T) {
@@ -190,11 +215,18 @@ var wrongformatTests = []wrongformatTest{
 	{nil, "-1.1.1"},
 	{nil, "1.-1.1"},
 	{nil, "1.1.-1"},
+	{nil, "1.1.1.a"},
+	{nil, "a.1.1.1"},
+	{nil, "1.1.1."},
+	{nil, "1.1.1.1.+123"},
+	{nil, "1.1.1.1.+-beta"},
 	// giant numbers
 	{nil, "20000000000000000000.1.1"},
 	{nil, "1.20000000000000000000.1"},
 	{nil, "1.1.20000000000000000000"},
 	{nil, "1.1.1-20000000000000000000"},
+	{nil, "1.1.1.20000000000000000000"},
+	{nil, "1.1.1.20000000000000000000-alpha"},
 	// Leading zeroes
 	{nil, "01.1.1"},
 	{nil, "001.1.1"},
@@ -206,13 +238,17 @@ var wrongformatTests = []wrongformatTest{
 	{nil, "1.1.1-001"},
 	{nil, "1.1.1-beta.01"},
 	{nil, "1.1.1-beta.001"},
-	{&Version{0, 0, 0, []PRVersion{prstr("!")}, nil}, "0.0.0-!"},
-	{&Version{0, 0, 0, nil, []string{"!"}}, "0.0.0+!"},
+	{nil, "1.1.0.01"},
+	{nil, "1.1.0.01-1"},
+	{nil, "1.1.0.01-001"},
+	{nil, "1.1.1.1-beta.001"},
+	{&Version{0, 0, 0, -1, []PRVersion{prstr("!")}, nil}, "0.0.0-!"},
+	{&Version{0, 0, 0, -1, nil, []string{"!"}}, "0.0.0+!"},
 	// empty prversion
-	{&Version{0, 0, 0, []PRVersion{prstr(""), prstr("alpha")}, nil}, "0.0.0-.alpha"},
+	{&Version{0, 0, 0, -1, []PRVersion{prstr(""), prstr("alpha")}, nil}, "0.0.0-.alpha"},
 	// empty build meta data
-	{&Version{0, 0, 0, []PRVersion{prstr("alpha")}, []string{""}}, "0.0.0-alpha+"},
-	{&Version{0, 0, 0, []PRVersion{prstr("alpha")}, []string{"test", ""}}, "0.0.0-alpha+test."},
+	{&Version{0, 0, 0, -1, []PRVersion{prstr("alpha")}, []string{""}}, "0.0.0-alpha+"},
+	{&Version{0, 0, 0, -1, []PRVersion{prstr("alpha")}, []string{"test", ""}}, "0.0.0-alpha+test."},
 }
 
 func TestWrongFormat(t *testing.T) {
@@ -244,8 +280,8 @@ func TestWrongTolerantFormat(t *testing.T) {
 }
 
 func TestCompareHelper(t *testing.T) {
-	v := Version{1, 0, 0, []PRVersion{prstr("alpha")}, nil}
-	v1 := Version{1, 0, 0, nil, nil}
+	v := Version{1, 0, 0, -1, []PRVersion{prstr("alpha")}, nil}
+	v1 := Version{1, 0, 0, -1, nil, nil}
 	if !v.EQ(v) {
 		t.Errorf("%q should be equal to %q", v, v)
 	}
@@ -285,6 +321,7 @@ const (
 	MAJOR = iota
 	MINOR
 	PATCH
+	REVISION
 )
 
 type incrementTest struct {
@@ -295,12 +332,18 @@ type incrementTest struct {
 }
 
 var incrementTests = []incrementTest{
-	{Version{1, 2, 3, nil, nil}, PATCH, false, Version{1, 2, 4, nil, nil}},
-	{Version{1, 2, 3, nil, nil}, MINOR, false, Version{1, 3, 0, nil, nil}},
-	{Version{1, 2, 3, nil, nil}, MAJOR, false, Version{2, 0, 0, nil, nil}},
-	{Version{0, 1, 2, nil, nil}, PATCH, false, Version{0, 1, 3, nil, nil}},
-	{Version{0, 1, 2, nil, nil}, MINOR, false, Version{0, 2, 0, nil, nil}},
-	{Version{0, 1, 2, nil, nil}, MAJOR, false, Version{1, 0, 0, nil, nil}},
+	{Version{1, 2, 3, -1, nil, nil}, PATCH, false, Version{1, 2, 4, -1, nil, nil}},
+	{Version{1, 2, 3, -1, nil, nil}, MINOR, false, Version{1, 3, 0, -1, nil, nil}},
+	{Version{1, 2, 3, -1, nil, nil}, MAJOR, false, Version{2, 0, 0, -1, nil, nil}},
+	{Version{0, 1, 2, -1, nil, nil}, PATCH, false, Version{0, 1, 3, -1, nil, nil}},
+	{Version{0, 1, 2, -1, nil, nil}, MINOR, false, Version{0, 2, 0, -1, nil, nil}},
+	{Version{0, 1, 2, -1, nil, nil}, MAJOR, false, Version{1, 0, 0, -1, nil, nil}},
+	{Version{1, 2, 3, 1, nil, nil}, REVISION, false, Version{1, 2, 3, 2, nil, nil}},
+	{Version{0, 1, 2, 3, nil, nil}, REVISION, false, Version{0, 1, 2, 4, nil, nil}},
+	{Version{0, 1, 2, -1, nil, nil}, REVISION, false, Version{0, 1, 2, -1, nil, nil}},
+	{Version{1, 2, 3, 1, nil, nil}, PATCH, false, Version{1, 2, 4, 0, nil, nil}},
+	{Version{1, 2, 3, 1, nil, nil}, MINOR, false, Version{1, 3, 0, 0, nil, nil}},
+	{Version{1, 2, 3, 1, nil, nil}, MAJOR, false, Version{2, 0, 0, 0, nil, nil}},
 }
 
 func TestIncrements(t *testing.T) {
@@ -309,6 +352,7 @@ func TestIncrements(t *testing.T) {
 			test.version.Major,
 			test.version.Minor,
 			test.version.Patch,
+			test.version.Revision,
 			test.version.Pre,
 			test.version.Build,
 		}
@@ -320,6 +364,8 @@ func TestIncrements(t *testing.T) {
 			err = test.version.IncrementMinor()
 		case MAJOR:
 			err = test.version.IncrementMajor()
+		case REVISION:
+			err = test.version.IncrementRevision()
 		}
 		if test.expectingError {
 			if err != nil {
@@ -394,7 +440,7 @@ func TestNewHelper(t *testing.T) {
 	if v == nil {
 		t.Fatal("Version is nil")
 	}
-	if v.Compare(Version{1, 2, 3, nil, nil}) != 0 {
+	if v.Compare(Version{1, 2, 3, -1, nil, nil}) != 0 {
 		t.Fatal("Unexpected comparison problem")
 	}
 }
@@ -404,7 +450,7 @@ func TestMakeHelper(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error %q", err)
 	}
-	if v.Compare(Version{1, 2, 3, nil, nil}) != 0 {
+	if v.Compare(Version{1, 2, 3, -1, nil, nil}) != 0 {
 		t.Fatal("Unexpected comparison problem")
 	}
 }
@@ -426,6 +472,15 @@ var finalizeTests = []finalizeTest{
 	{"1.2.3+123.b-uild", "1.2.3"},
 	{"1.2.3-alpha.b-eta", "1.2.3"},
 	{"1.2-alpha", ""},
+	{"1.2.3.4", "1.2.3.4"},
+	{"0.0.1.0", "0.0.1.0"},
+	{"0.0.1.0-alpha.preview+123.456", "0.0.1.0"},
+	{"1.2.3.4-alpha.1+123.456", "1.2.3.4"},
+	{"1.2.3.4-alpha.1", "1.2.3.4"},
+	{"1.2.3.4+123.456", "1.2.3.4"},
+	{"1.2.3.4-alpha.b-eta+123.b-uild", "1.2.3.4"},
+	{"1.2.3.4+123.b-uild", "1.2.3.4"},
+	{"1.2.3.4-alpha.b-eta", "1.2.3.4"},
 }
 
 func TestFinalizeVersion(t *testing.T) {
